@@ -85,7 +85,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: calc(var(--safe-top) + 10px) 22px 0 22px;
+      padding: calc(var(--safe-top) + 0px) 22px 0 22px;
       color: #fff;
       font-size: 16px;
       font-weight: 700;
@@ -199,9 +199,9 @@
       position: absolute;
       left: 0;
       right: 0;
-      bottom: calc(var(--safe-bottom) + 25px);
+      bottom: calc(var(--safe-bottom) + 0px);
       z-index: 4;
-      padding: 0 50px;
+      padding: 0 26px;
       display: flex;
       justify-content: space-between;
       align-items: end;
@@ -547,15 +547,15 @@
           <div class="setting-label">顯示選項</div>
           <div class="setting-row">
             <label class="status-chip"><input type="checkbox" id="liveClockToggle" checked />&nbsp;平常讀取現在時間</label>
-            <label class="status-chip"><input type="checkbox" id="tapHintToggle" />&nbsp;顯示提示字</label>
-            <label class="status-chip"><input type="checkbox" id="statusBarToggle" />&nbsp;顯示上方狀態列</label>
+            <label class="status-chip"><input type="checkbox" id="tapHintToggle" checked />&nbsp;顯示提示字</label>
+            <label class="status-chip"><input type="checkbox" id="statusBarToggle" checked />&nbsp;顯示上方狀態列</label>
           </div>
         </div>
 
         <div class="setting-group">
           <div class="setting-label">時間格式</div>
           <div class="setting-row">
-            <label class="status-chip"><input type="checkbox" id="hourFormatToggle" />&nbsp;24 小時制</label>
+            <label class="status-chip"><input type="checkbox" id="hourFormatToggle" checked />&nbsp;24 小時制</label>
           </div>
         </div>
 
@@ -572,11 +572,11 @@
         <div class="setting-group">
           <div class="setting-label">時間位置與大小</div>
           <div class="setting-row">
-            <input type="range" id="timeSizeRange" min="80" max="200" step="2" value="140" />
+            <input type="range" id="timeSizeRange" min="88" max="180" step="2" value="132" />
             <span class="status-chip">大小 <span id="timeSizeValue">132</span></span>
           </div>
           <div class="setting-row" style="margin-top:8px;">
-            <input type="range" id="timeOffsetRange" min="0" max="180" step="2" value="60" />
+            <input type="range" id="timeOffsetRange" min="48" max="180" step="2" value="96" />
             <span class="status-chip">位置 <span id="timeOffsetValue">96</span></span>
           </div>
         </div>
@@ -587,7 +587,7 @@
   </div>
 
   <script>
-    const storageKey = 'ios-time-rewind-ui-v7';
+    const storageKey = 'ios-time-rewind-ui-v5';
     const defaultBackground = './UI.jpeg';
 
     const state = {
@@ -597,12 +597,12 @@
       fakeStartMs: null,
       rewinding: false,
       liveClock: true,
-      showHint: false,
-      showStatusBar: false,
-      use24Hour: false,
+      showHint: true,
+      showStatusBar: true,
+      use24Hour: true,
       rewindSpeed: 1.0,
-      timeSize: 140,
-      timeOffset: 60,
+      timeSize: 132,
+      timeOffset: 96,
       timeStyle: 'glass',
       backgroundData: null,
       numpadInput: '',
@@ -652,27 +652,6 @@
       e.preventDefault();
     }
 
-    function adjustBaseMinute(nowMs, minutesToAdd, rewindSpeed, bufferSeconds = 5) {
-      const d = new Date(nowMs);
-
-      const seconds = d.getSeconds();
-      const ms = d.getMilliseconds();
-
-      // 距離下一分鐘還剩幾秒
-      const remainingSeconds = 60 - seconds - ms / 1000;
-
-      // 倒數這幾分鐘需要幾秒
-      const countdownSeconds = minutesToAdd / rewindSpeed;
-
-      // 判斷門檻
-      const threshold = countdownSeconds + bufferSeconds;
-
-      const thisMinute = Math.floor(nowMs / 60000) * 60000;
-      const nextMinute = thisMinute + 60000;
-
-      return remainingSeconds <= threshold ? nextMinute : thisMinute;
-    }
-
     function saveState() {
       localStorage.setItem(storageKey, JSON.stringify({
         liveClock: state.liveClock,
@@ -715,10 +694,11 @@
       timeText.style.webkitTextStroke = '0 transparent';
 
       if (style === 'glass') {
-        timeText.style.color = 'rgba(255,255,255,0.35)';
+        timeText.style.color = 'rgba(255,255,255,0.16)';
         timeText.style.fontWeight = '700';
-        timeText.style.letterSpacing = '-3px';
-        timeText.style.textShadow = '0 2px 10px rgba(0,0,0,0.14)';
+        timeText.style.letterSpacing = '-3.8px';
+        timeText.style.webkitTextStroke = '0.35px rgba(255,255,255,0.78)';
+        timeText.style.textShadow = '0 2px 10px rgba(0,0,0,0.10)';
       } else if (style === 'solid') {
         timeText.style.color = 'rgba(255,255,255,0.97)';
         timeText.style.fontWeight = '800';
@@ -832,6 +812,12 @@
       timeText.textContent = formatTime(state.displayMs);
     }
 
+    function getPreparedFakeNow(now = Date.now()) {
+      const speed = Math.max(0.1, Number(state.rewindSpeed) || 1);
+      const rewindDurationMs = (state.addedMinutes / speed) * 1000;
+      return now + state.addedMinutes * 60000 + rewindDurationMs;
+    }
+
     function syncNormalClock() {
       const now = Date.now();
       state.displayMs = now;
@@ -840,11 +826,11 @@
     }
 
     function prepareFakeTime(minutes) {
-      const baseMinute = adjustBaseMinute(Date.now(), minutes, state.rewindSpeed, 5);
-      state.targetMs = baseMinute;
-      state.fakeStartMs = baseMinute + minutes * 60000;
-      state.displayMs = state.fakeStartMs;
       state.addedMinutes = minutes;
+      state.fakeStartMs = null;
+      const fakeNow = getPreparedFakeNow();
+      state.displayMs = fakeNow;
+      state.targetMs = Date.now();
       render();
       showToast(`已增加 ${minutes} 分鐘`);
     }
@@ -861,10 +847,15 @@
 
     function startRewind() {
       if (state.rewinding) return;
-      if (!state.fakeStartMs || state.displayMs <= state.targetMs) {
+      if (state.addedMinutes <= 0) {
         showToast('請先用左下角輸入分鐘數');
         return;
       }
+
+      const now = Date.now();
+      state.targetMs = now;
+      state.displayMs = getPreparedFakeNow(now);
+      state.fakeStartMs = state.displayMs;
 
       closePanels();
       state.rewinding = true;
@@ -874,7 +865,6 @@
         const nextMs = state.displayMs - 60000 * state.rewindSpeed;
         state.displayMs = Math.max(state.targetMs, nextMs);
         render();
-
         if (state.displayMs <= state.targetMs) {
           stopRewind(true);
         }
@@ -883,8 +873,15 @@
 
     function mainTick() {
       if (state.rewinding) return;
-      if (!state.fakeStartMs && state.liveClock) syncNormalClock();
-      else render();
+      if (state.addedMinutes > 0) {
+        state.displayMs = getPreparedFakeNow();
+        state.targetMs = Date.now();
+        render();
+      } else if (state.liveClock) {
+        syncNormalClock();
+      } else {
+        render();
+      }
     }
 
     magicBtn.addEventListener('click', () => {
