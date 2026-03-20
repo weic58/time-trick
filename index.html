@@ -547,15 +547,15 @@
           <div class="setting-label">顯示選項</div>
           <div class="setting-row">
             <label class="status-chip"><input type="checkbox" id="liveClockToggle" checked />&nbsp;平常讀取現在時間</label>
-            <label class="status-chip"><input type="checkbox" id="tapHintToggle" checked />&nbsp;顯示提示字</label>
-            <label class="status-chip"><input type="checkbox" id="statusBarToggle" checked />&nbsp;顯示上方狀態列</label>
+            <label class="status-chip"><input type="checkbox" id="tapHintToggle" />&nbsp;顯示提示字</label>
+            <label class="status-chip"><input type="checkbox" id="statusBarToggle" />&nbsp;顯示上方狀態列</label>
           </div>
         </div>
 
         <div class="setting-group">
           <div class="setting-label">時間格式</div>
           <div class="setting-row">
-            <label class="status-chip"><input type="checkbox" id="hourFormatToggle" checked />&nbsp;24 小時制</label>
+            <label class="status-chip"><input type="checkbox" id="hourFormatToggle" />&nbsp;24 小時制</label>
           </div>
         </div>
 
@@ -587,7 +587,7 @@
   </div>
 
   <script>
-    const storageKey = 'ios-time-rewind-ui-v6';
+    const storageKey = 'ios-time-rewind-ui-v7';
     const defaultBackground = './UI.jpeg';
 
     const state = {
@@ -597,9 +597,9 @@
       fakeStartMs: null,
       rewinding: false,
       liveClock: true,
-      showHint: true,
-      showStatusBar: true,
-      use24Hour: true,
+      showHint: false,
+      showStatusBar: false,
+      use24Hour: false,
       rewindSpeed: 1.0,
       timeSize: 140,
       timeOffset: 60,
