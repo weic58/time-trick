@@ -200,7 +200,7 @@
       position: absolute;
       left: 0;
       right: 0;
-      bottom: calc(var(--safe-bottom) + 35px);
+      bottom: calc(var(--safe-bottom) + 20px);
       z-index: 4;
       padding: 0 50px;
       display: flex;
@@ -442,6 +442,22 @@
       font-size: 13px;
     }
 
+
+    .black-overlay {
+      position: absolute;
+      inset: 0;
+      background: #000;
+      z-index: 40;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.6s ease;
+    }
+
+    .black-overlay.on {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
     .toast {
       position: absolute;
       left: 50%;
@@ -550,6 +566,7 @@
             <label class="status-chip"><input type="checkbox" id="liveClockToggle" checked />&nbsp;平常讀取現在時間</label>
             <label class="status-chip"><input type="checkbox" id="tapHintToggle" />&nbsp;顯示提示字</label>
             <label class="status-chip"><input type="checkbox" id="statusBarToggle" />&nbsp;顯示上方狀態列</label>
+            <label class="status-chip"><input type="checkbox" id="blackModeToggle" />&nbsp;黑畫面模式</label>
           </div>
         </div>
 
@@ -584,6 +601,7 @@
       </div>
     </div>
 
+    <div class="black-overlay" id="blackOverlay"></div>
     <div class="toast" id="toast"></div>
   </div>
 
@@ -605,6 +623,8 @@
       timeSize: 140,
       timeOffset: 60,
       timeStyle: 'glass',
+      blackMode: false,
+      isBlackScreenVisible: false,
       backgroundData: null,
       numpadInput: '',
       toastTimer: null,
@@ -638,6 +658,8 @@
     const tapHintToggle = document.getElementById('tapHintToggle');
     const statusBarToggle = document.getElementById('statusBarToggle');
     const hourFormatToggle = document.getElementById('hourFormatToggle');
+    const blackModeToggle = document.getElementById('blackModeToggle');
+    const blackOverlay = document.getElementById('blackOverlay');
     const timeSizeRange = document.getElementById('timeSizeRange');
     const timeOffsetRange = document.getElementById('timeOffsetRange');
     const timeSizeValue = document.getElementById('timeSizeValue');
@@ -655,6 +677,35 @@
     function preventGesture(e) {
       e.preventDefault();
     }
+
+    let blackScreenTimer = null;
+
+    function showBlackScreen(immediate = false) {
+      state.isBlackScreenVisible = true;
+      if (immediate) {
+        blackOverlay.style.transition = 'none';
+        blackOverlay.classList.add('on');
+        requestAnimationFrame(() => {
+          blackOverlay.style.transition = '';
+        });
+      } else {
+        blackOverlay.classList.add('on');
+      }
+    }
+
+    function hideBlackScreen() {
+      state.isBlackScreenVisible = false;
+      blackOverlay.classList.remove('on');
+    }
+
+    function resetBlackScreenTimer() {
+      clearTimeout(blackScreenTimer);
+      if (!state.blackMode || state.isBlackScreenVisible) return;
+      blackScreenTimer = setTimeout(() => {
+        showBlackScreen();
+      }, 180000);
+    }
+
 
     function getPreparedFakeNow(now = Date.now()) {
       if (state.addedMinutes <= 0) return now;
@@ -674,6 +725,7 @@
         timeSize: state.timeSize,
         timeOffset: state.timeOffset,
         timeStyle: state.timeStyle,
+        blackMode: state.blackMode,
         backgroundData: state.backgroundData
       }));
     }
@@ -692,6 +744,7 @@
         if (typeof saved.timeSize === 'number') state.timeSize = saved.timeSize;
         if (typeof saved.timeOffset === 'number') state.timeOffset = saved.timeOffset;
         if (typeof saved.timeStyle === 'string') state.timeStyle = saved.timeStyle;
+        if (typeof saved.blackMode === 'boolean') state.blackMode = saved.blackMode;
         if (typeof saved.backgroundData === 'string') state.backgroundData = saved.backgroundData;
       } catch (err) {
         console.warn('讀取設定失敗', err);
@@ -748,6 +801,7 @@
       tapHintToggle.checked = state.showHint;
       statusBarToggle.checked = state.showStatusBar;
       hourFormatToggle.checked = state.use24Hour;
+      blackModeToggle.checked = state.blackMode;
       timeSizeRange.value = String(state.timeSize);
       timeOffsetRange.value = String(state.timeOffset);
       document.documentElement.style.setProperty('--time-size', `${state.timeSize}px`);
@@ -755,6 +809,8 @@
       timeSizeValue.textContent = String(state.timeSize);
       timeOffsetValue.textContent = String(state.timeOffset);
       applyTimeStyle(state.timeStyle);
+      if (state.blackMode && state.isBlackScreenVisible) blackOverlay.classList.add('on');
+      else blackOverlay.classList.remove('on');
     }
 
     function showToast(message) {
@@ -856,6 +912,7 @@
       state.numpadInput = '';
       if (done) showToast('倒流完成');
       render();
+      resetBlackScreenTimer();
     }
 
     function startRewind() {
@@ -866,6 +923,9 @@
       }
 
       closePanels();
+      if (state.blackMode) {
+        hideBlackScreen();
+      }
       const now = Date.now();
       const speed = Math.max(0.1, Number(state.rewindSpeed) || 1);
       state.rewindDurationMs = (state.addedMinutes / speed) * 1000;
@@ -874,6 +934,7 @@
       state.targetMs = now;
       state.displayMs = state.rewindStartDisplayMs;
       state.rewinding = true;
+      resetBlackScreenTimer();
       showToast('開始倒流');
 
       state.rewindTimer = setInterval(() => {
@@ -900,15 +961,20 @@
     }
 
     magicBtn.addEventListener('click', () => {
+      if (state.blackMode) resetBlackScreenTimer();
       state.numpadInput = String(state.addedMinutes || 0);
       openPanel('numpad');
     });
 
-    settingsBtn.addEventListener('click', () => openPanel('settings'));
+    settingsBtn.addEventListener('click', () => {
+      if (state.blackMode) resetBlackScreenTimer();
+      openPanel('settings');
+    });
     backdrop.addEventListener('click', closePanels);
 
     contentArea.addEventListener('click', () => {
-      if (state.currentPanel || state.rewinding) return;
+      if (state.currentPanel || state.rewinding || state.isBlackScreenVisible) return;
+      if (state.blackMode) resetBlackScreenTimer();
       startRewind();
     });
 
@@ -928,6 +994,7 @@
         }
         state.addedMinutes = value;
         saveState();
+        if (state.blackMode) resetBlackScreenTimer();
         mainTick();
         return;
       } else if (state.numpadInput.length < 4) {
@@ -941,6 +1008,7 @@
       state.rewindSpeed = Number(speedRange.value);
       speedValue.textContent = `${state.rewindSpeed.toFixed(1)}x`;
       saveState();
+      if (state.blackMode) resetBlackScreenTimer();
       if (!state.rewinding) mainTick();
     });
 
@@ -955,6 +1023,7 @@
       hintText.classList.toggle('show', state.showHint);
       toast.classList.remove('show');
       saveState();
+      if (state.blackMode) resetBlackScreenTimer();
     });
 
     statusBarToggle.addEventListener('change', () => {
@@ -962,12 +1031,26 @@
       topbar.style.display = state.showStatusBar ? 'flex' : 'none';
       topIndicator.style.display = state.showStatusBar ? 'block' : 'none';
       saveState();
+      if (state.blackMode) resetBlackScreenTimer();
     });
 
     hourFormatToggle.addEventListener('change', () => {
       state.use24Hour = hourFormatToggle.checked;
       render();
       saveState();
+      if (state.blackMode) resetBlackScreenTimer();
+    });
+
+
+    blackModeToggle.addEventListener('change', () => {
+      state.blackMode = blackModeToggle.checked;
+      saveState();
+      if (state.blackMode) {
+        showBlackScreen();
+      } else {
+        clearTimeout(blackScreenTimer);
+        hideBlackScreen();
+      }
     });
 
     timeSizeRange.addEventListener('input', () => {
@@ -975,6 +1058,7 @@
       document.documentElement.style.setProperty('--time-size', `${state.timeSize}px`);
       timeSizeValue.textContent = String(state.timeSize);
       saveState();
+      if (state.blackMode) resetBlackScreenTimer();
     });
 
     timeOffsetRange.addEventListener('input', () => {
@@ -989,6 +1073,7 @@
       if (!btn) return;
       applyTimeStyle(btn.dataset.style);
       saveState();
+      if (state.blackMode) resetBlackScreenTimer();
       closePanels();
     });
 
@@ -1000,6 +1085,7 @@
         state.backgroundData = reader.result;
         applySettingsToUI();
         saveState();
+        if (state.blackMode) resetBlackScreenTimer();
         closePanels();
         showToast('背景已更新');
       };
@@ -1010,8 +1096,16 @@
       state.backgroundData = null;
       applySettingsToUI();
       saveState();
+      if (state.blackMode) resetBlackScreenTimer();
       closePanels();
       showToast('已恢復預設背景');
+    });
+
+
+    blackOverlay.addEventListener('click', (e) => {
+      e.stopPropagation();
+      hideBlackScreen();
+      resetBlackScreenTimer();
     });
 
     document.addEventListener('keydown', (e) => {
@@ -1027,6 +1121,7 @@
         if (value >= 0) {
           state.addedMinutes = value;
           saveState();
+          if (state.blackMode) resetBlackScreenTimer();
           mainTick();
         }
       }
@@ -1048,7 +1143,11 @@
     loadState();
     setAppHeight();
     applySettingsToUI();
+    if (state.blackMode) {
+      showBlackScreen(true);
+    }
     mainTick();
+    if (state.blackMode && !state.isBlackScreenVisible) resetBlackScreenTimer();
     state.tickTimer = setInterval(mainTick, 250);
   </script>
 </body>
