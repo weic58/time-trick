@@ -17,8 +17,8 @@
       --shadow: 0 16px 40px rgba(0,0,0,0.28);
       --safe-top: env(safe-area-inset-top, 0px);
       --safe-bottom: env(safe-area-inset-bottom, 0px);
-      --time-size: 140px;
-      --time-offset: 60px;
+      --time-size: 132px;
+      --time-offset: 96px;
       --app-height: 100dvh;
     }
 
@@ -166,7 +166,7 @@
     }
 
     .date {
-      font-size: clamp(20px, 5.2vw, 27px);
+      font-size: clamp(18px, 4.8vw, 24px);
       font-weight: 700;
       color: var(--muted);
       margin-bottom: 10px;
@@ -176,7 +176,7 @@
     .time {
       font-size: var(--time-size);
       line-height: 0.95;
-      letter-spacing: -2px;
+      letter-spacing: -1.5px;
       transition: opacity 0.18s ease;
       text-rendering: geometricPrecision;
       -webkit-font-smoothing: antialiased;
@@ -652,6 +652,27 @@
       e.preventDefault();
     }
 
+    function adjustBaseMinute(nowMs, minutesToAdd, rewindSpeed, bufferSeconds = 5) {
+      const d = new Date(nowMs);
+
+      const seconds = d.getSeconds();
+      const ms = d.getMilliseconds();
+
+      // 距離下一分鐘還剩幾秒
+      const remainingSeconds = 60 - seconds - ms / 1000;
+
+      // 倒數這幾分鐘需要幾秒
+      const countdownSeconds = minutesToAdd / rewindSpeed;
+
+      // 判斷門檻
+      const threshold = countdownSeconds + bufferSeconds;
+
+      const thisMinute = Math.floor(nowMs / 60000) * 60000;
+      const nextMinute = thisMinute + 60000;
+
+      return remainingSeconds <= threshold ? nextMinute : thisMinute;
+    }
+
     function saveState() {
       localStorage.setItem(storageKey, JSON.stringify({
         liveClock: state.liveClock,
@@ -694,17 +715,10 @@
       timeText.style.webkitTextStroke = '0 transparent';
 
       if (style === 'glass') {
-        timeText.style.color = 'rgba(255,255,255,0.18)';
+        timeText.style.color = 'rgba(255,255,255,0.35)';
         timeText.style.fontWeight = '700';
-        timeText.style.letterSpacing = '-4.8px';
-        timeText.style.textShadow = `
-          0 0 1px rgba(255,255,255,0.72),
-          0.45px 0 rgba(255,255,255,0.58),
-          -0.45px 0 rgba(255,255,255,0.58),
-          0 0.45px rgba(255,255,255,0.48),
-          0 -0.45px rgba(255,255,255,0.48),
-          0 2px 10px rgba(0,0,0,0.10)
-        `;
+        timeText.style.letterSpacing = '-3px';
+        timeText.style.textShadow = '0 2px 10px rgba(0,0,0,0.14)';
       } else if (style === 'solid') {
         timeText.style.color = 'rgba(255,255,255,0.97)';
         timeText.style.fontWeight = '800';
@@ -826,9 +840,9 @@
     }
 
     function prepareFakeTime(minutes) {
-      const now = Date.now();
-      state.targetMs = now;
-      state.fakeStartMs = now + minutes * 60000;
+      const baseMinute = adjustBaseMinute(Date.now(), minutes, state.rewindSpeed, 5);
+      state.targetMs = baseMinute;
+      state.fakeStartMs = baseMinute + minutes * 60000;
       state.displayMs = state.fakeStartMs;
       state.addedMinutes = minutes;
       render();
@@ -857,13 +871,13 @@
       showToast('開始倒流');
 
       state.rewindTimer = setInterval(() => {
-        state.displayMs -= 60000 * state.rewindSpeed;
-        if (state.displayMs <= state.targetMs) {
-          state.displayMs = state.targetMs;
-          stopRewind(true);
-          return;
-        }
+        const nextMs = state.displayMs - 60000 * state.rewindSpeed;
+        state.displayMs = Math.max(state.targetMs, nextMs);
         render();
+
+        if (state.displayMs <= state.targetMs) {
+          stopRewind(true);
+        }
       }, 1000);
     }
 
