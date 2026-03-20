@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>time trick</title>
+  <style>
+    :root {
+      --fg: rgba(255,255,255,0.97);
+      --muted: rgba(255,255,255,0.84);
+      --glass: rgba(255,255,255,0.16);
+      --glass-2: rgba(255,255,255,0.11);
+      --glass-border: rgba(255,255,255,0.26);
+      --shadow: 0 12px 36px rgba(0,0,0,0.28);
+      --safe-bottom: max(22px, env(safe-area-inset-bottom));
+      --safe-top: max(16px, env(safe-area-inset-top));
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang TC", "Noto Sans TC", sans-serif;
+      background: #000;
+      color: var(--fg);
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+    }
+
+    .phone {
+      position: relative;
+      width: min(100vw, 430px);
+      height: min(100vh, 932px);
+      overflow: hidden;
+      background: #111 center/cover no-repeat;
+      isolation: isolate;
+    }
+
+    .bg-overlay {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(255,180,60,0.18), transparent 33%),
+        linear-gradient(to bottom, rgba(0,0,0,0.18), rgba(0,0,0,0.28) 40%, rgba(0,0,0,0.16) 70%, rgba(0,0,0,0.34));
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .topbar {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      z-index: 2;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: calc(var(--safe-top) + 10px) 22px 0 22px;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.28);
+    }
+
+    .status-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+    }
+
+    .signal {
+      display: inline-flex;
+      gap: 2px;
+      align-items: end;
+      height: 14px;
+    }
+    .signal span {
+      width: 4px;
+      border-radius: 2px;
+      background: #fff;
+      opacity: 0.95;
+    }
+    .signal span:nth-child(1){ height: 5px; }
+    .signal span:nth-child(2){ height: 8px; }
+    .signal span:nth-child(3){ height: 11px; }
+    .signal span:nth-child(4){ height: 14px; }
+
+    .battery {
+      position: relative;
+      width: 42px;
+      height: 22px;
+      border-radius: 7px;
+      background: #f2cf2f;
+      color: #000;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .battery::after {
+      content: "";
+      position: absolute;
+      right: -3px;
+      top: 6px;
+      width: 3px;
+      height: 10px;
+      border-radius: 0 3px 3px 0;
+      background: rgba(255,255,255,0.85);
+    }
+
+    .home-indicator-top {
+      position: absolute;
+      right: 20px;
+      top: calc(var(--safe-top) + 38px);
+      width: 88px;
+      height: 5px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.52);
+      z-index: 2;
+    }
+
+    .content {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding-top: 126px;
+      text-align: center;
+      text-shadow: 0 3px 12px rgba(0,0,0,0.28);
+    }
+
+    .date {
+      font-size: clamp(20px, 5vw, 24px);
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .time {
+      font-size: clamp(112px, 26vw, 144px);
+      line-height: 0.95;
+      font-weight: 700;
+      letter-spacing: -4px;
+      color: rgba(255,255,255,0.42);
+      -webkit-text-stroke: 1.2px rgba(255,255,255,0.55);
+      text-shadow:
+        0 3px 14px rgba(0,0,0,0.18),
+        0 0 1px rgba(255,255,255,0.35);
+      cursor: pointer;
+      transition: transform 0.18s ease, opacity 0.18s ease;
+      backdrop-filter: blur(1px);
+      -webkit-backdrop-filter: blur(1px);
+    }
+    .time:active { transform: scale(0.99); }
+    .time.rewinding {
+      animation: pulseGlow 1.2s ease-in-out infinite;
+    }
+    @keyframes pulseGlow {
+      0%, 100% { filter: drop-shadow(0 0 0 rgba(255,255,255,0)); }
+      50% { filter: drop-shadow(0 0 10px rgba(255,255,255,0.22)); }
+    }
+
+    .hint {
+      margin-top: 8px;
+      font-size: 14px;
+      color: rgba(255,255,255,0.72);
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+    .hint.show { opacity: 1; }
+
+    .bottom-bar {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: calc(var(--safe-bottom) + 8px);
+      z-index: 3;
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      padding: 0 26px;
+    }
+
+    .glass-btn {
+      width: 74px;
+      height: 74px;
+      border-radius: 50%;
+      border: 1px solid var(--glass-border);
+      background: linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.10));
+      backdrop-filter: blur(18px) saturate(150%);
+      -webkit-backdrop-filter: blur(18px) saturate(150%);
+      box-shadow: inset 0 1px 1px rgba(255,255,255,0.18), var(--shadow);
+      display: grid;
+      place-items: center;
+      color: rgba(255,255,255,0.95);
+      cursor: pointer;
+      transition: transform 0.18s ease, background 0.18s ease;
+    }
+    .glass-btn:active {
+      transform: scale(0.97);
+      background: linear-gradient(180deg, rgba(255,255,255,0.24), rgba(255,255,255,0.12));
+    }
+    .glass-btn svg {
+      width: 34px;
+      height: 34px;
+      fill: currentColor;
+    }
+
+    .home-indicator {
+      position: absolute;
+      left: 50%;
+      bottom: 10px;
+      transform: translateX(-50%);
+      width: 135px;
+      height: 5px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.94);
+      z-index: 3;
+      opacity: 0.92;
+    }
+
+    .sheet-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.25);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      z-index: 10;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s ease;
+    }
+    .sheet-backdrop.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .sheet {
+      position: absolute;
+      left: 50%;
+      bottom: 120px;
+      z-index: 11;
+      border-radius: 24px;
+      padding: 12px 12px 14px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: linear-gradient(180deg, rgba(30,30,30,0.68), rgba(20,20,20,0.78));
+      backdrop-filter: blur(24px) saturate(140%);
+      -webkit-backdrop-filter: blur(24px) saturate(140%);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.38);
+      transform: translateX(-50%) translateY(130%);
+      transition: transform 0.28s ease;
+      color: #fff;
+    }
+    .sheet.show { transform: translateX(-50%) translateY(0); }
+    .sheet .grabber {
+      width: 46px;
+      height: 5px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.35);
+      margin: 0 auto 12px;
+    }
+    .sheet h3 {
+      margin: 0 0 12px;
+      text-align: center;
+      font-size: 19px;
+    }
+
+    .pad-display {
+      padding: 8px 12px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.09);
+      border: 1px solid rgba(255,255,255,0.12);
+      text-align: center;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+      min-height: 52px;
+      display: grid;
+      place-items: center;
+    }
+
+    .pad-help {
+      text-align: center;
+      font-size: 13px;
+      color: rgba(255,255,255,0.72);
+      margin: -4px 0 12px;
+    }
+
+    .numpad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .numkey {
+      height: 52px;
+      border: 0;
+      border-radius: 16px;
+      color: #fff;
+      font-size: 22px;
+      font-weight: 600;
+      background: rgba(255,255,255,0.09);
+      border: 1px solid rgba(255,255,255,0.12);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+
+    .numkey {
+      height: 62px;
+      border: 0;
+      border-radius: 18px;
+      color: #fff;
+      font-size: 26px;
+      font-weight: 600;
+      background: rgba(255,255,255,0.09);
+      border: 1px solid rgba(255,255,255,0.12);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+    .numkey:active { transform: scale(0.98); }
+    .numkey.wide { grid-column: span 2; }
+    .numkey.confirm {
+      background: rgba(255,255,255,0.18);
+    }
+
+    .settings-body {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .setting-group {
+      padding: 12px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.11);
+    }
+
+    .setting-label {
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: rgba(255,255,255,0.88);
+      font-weight: 600;
+    }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    input[type="range"] {
+      flex: 1;
+      min-width: 180px;
+      accent-color: #fff;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      color: rgba(255,255,255,0.9);
+      font-size: 14px;
+    }
+
+    .small-btn {
+      border: 0;
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.12);
+      font-size: 14px;
+    }
+
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.10);
+      font-size: 13px;
+      color: rgba(255,255,255,0.84);
+    }
+
+    .toast {
+      position: absolute;
+      left: 50%;
+      bottom: 122px;
+      transform: translateX(-50%) translateY(16px);
+      z-index: 20;
+      padding: 10px 14px;
+      border-radius: 16px;
+      color: #fff;
+      font-size: 14px;
+      background: rgba(25,25,25,0.72);
+      border: 1px solid rgba(255,255,255,0.12);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      opacity: 0;
+      transition: opacity 0.22s ease, transform 0.22s ease;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div class="phone" id="phone">
+    <div class="bg-overlay"></div>
+
+    <div class="topbar">
+      <div id="carrier">台灣大哥大</div>
+      <div class="status-right">
+        <div class="signal"><span></span><span></span><span></span><span></span></div>
+        <div>4G</div>
+        <div class="battery">70</div>
+      </div>
+    </div>
+    <div class="home-indicator-top"></div>
+
+    <div class="content" id="contentArea">
+      <div class="date" id="dateText"></div>
+      <div class="time" id="timeText" title="點一下開始倒流">00:00</div>
+      <div class="hint" id="hintText">先用左下角輸入增加分鐘，再點時間開始倒流</div>
+    </div>
+
+    <div class="bottom-bar">
+      <button class="glass-btn" id="magicBtn" aria-label="輸入增加分鐘">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M7 2h10a2 2 0 0 1 2 2v3a5 5 0 0 1-2.03 4.03l-.54.4A3 3 0 0 0 15.2 13.8V20a2 2 0 0 1-2 2H10.8a2 2 0 0 1-2-2v-6.2a3 3 0 0 0-1.23-2.37l-.54-.4A5 5 0 0 1 5 7V4a2 2 0 0 1 2-2zm2 3v2h6V5H9zm3 7.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6z"/>
+        </svg>
+      </button>
+
+      <button class="glass-btn" id="settingsBtn" aria-label="設定">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1h1.8a2.2 2.2 0 0 1 2.05 1.4l.32.82h.83A2 2 0 0 1 22 10.2v6.6A2.2 2.2 0 0 1 19.8 19H4.2A2.2 2.2 0 0 1 2 16.8v-6.6A2 2 0 0 1 4 8.2h.83l.32-.82A2.2 2.2 0 0 1 7.2 6H9V5zm3 3.2a4.3 4.3 0 1 0 0 8.6 4.3 4.3 0 0 0 0-8.6zm0 2a2.3 2.3 0 1 1 0 4.6 2.3 2.3 0 0 1 0-4.6z"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="home-indicator"></div>
+
+    <div class="sheet-backdrop" id="backdrop"></div>
+
+    <div class="sheet" id="numpadSheet" style="width:min(300px, calc(100vw - 32px));">
+      <div class="grabber"></div>
+      <h3>輸入要增加的分鐘數</h3>
+      <div class="pad-display" id="padDisplay">0</div>
+      <div class="pad-help">例如輸入 3，時間會先跳成 +3 分鐘，再點時間開始慢慢倒流</div>
+      <div class="numpad">
+        <button class="numkey" data-key="1">1</button>
+        <button class="numkey" data-key="2">2</button>
+        <button class="numkey" data-key="3">3</button>
+        <button class="numkey" data-key="4">4</button>
+        <button class="numkey" data-key="5">5</button>
+        <button class="numkey" data-key="6">6</button>
+        <button class="numkey" data-key="7">7</button>
+        <button class="numkey" data-key="8">8</button>
+        <button class="numkey" data-key="9">9</button>
+        <button class="numkey wide" data-key="clear">清除</button>
+        <button class="numkey" data-key="0">0</button>
+        <button class="numkey confirm" data-key="ok">確定</button>
+      </div>
+    </div>
+
+    <div class="sheet" id="settingsSheet" style="width:min(360px, calc(100vw - 28px));">
+      <div class="grabber"></div>
+      <h3>設定</h3>
+      <div class="settings-body">
+        <div class="setting-group">
+          <div class="setting-label">背景圖片</div>
+          <div class="setting-row">
+            <input type="file" id="bgUpload" accept="image/*" />
+            <button class="small-btn" id="resetBgBtn">恢復預設背景</button>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-label">倒流速度（每秒退幾個顯示步）</div>
+          <div class="setting-row">
+            <input type="range" id="speedRange" min="1" max="30" step="1" value="8" />
+            <span class="status-chip"><span>⚡</span><span id="speedValue">8</span></span>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-label">時間同步模式</div>
+          <div class="setting-row">
+            <label class="status-chip"><input type="checkbox" id="liveClockToggle" checked />&nbsp;平常讀取現在時間</label>
+            <label class="status-chip"><input type="checkbox" id="tapHintToggle" checked />&nbsp;顯示提示字</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <script>
+    const storageKey = 'ios-time-rewind-ui-v1';
+    const defaultBg = 'url("./UI.jpeg")';
+
+    const state = {
+      addedMinutes: 0,
+      displayMs: Date.now(),
+      targetMs: Date.now(),
+      fakeStartMs: null,
+      originalTargetMs: null,
+      rewinding: false,
+      showHint: true,
+      liveClock: true,
+      rewindStepsPerSecond: 8,
+      bgDataUrl: null,
+      intervalId: null,
+      toastId: null,
+      panel: null,
+      numpadInput: ''
+    };
+
+    const phone = document.getElementById('phone');
+    const dateText = document.getElementById('dateText');
+    const timeText = document.getElementById('timeText');
+    const hintText = document.getElementById('hintText');
+    const magicBtn = document.getElementById('magicBtn');
+    const settingsBtn = document.getElementById('settingsBtn');
+    const backdrop = document.getElementById('backdrop');
+    const numpadSheet = document.getElementById('numpadSheet');
+    const settingsSheet = document.getElementById('settingsSheet');
+    const padDisplay = document.getElementById('padDisplay');
+    const toast = document.getElementById('toast');
+    const bgUpload = document.getElementById('bgUpload');
+    const resetBgBtn = document.getElementById('resetBgBtn');
+    const speedRange = document.getElementById('speedRange');
+    const speedValue = document.getElementById('speedValue');
+    const liveClockToggle = document.getElementById('liveClockToggle');
+    const tapHintToggle = document.getElementById('tapHintToggle');
+
+    const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+
+    function saveState() {
+      localStorage.setItem(storageKey, JSON.stringify({
+        rewindStepsPerSecond: state.rewindStepsPerSecond,
+        bgDataUrl: state.bgDataUrl,
+        liveClock: state.liveClock,
+        showHint: state.showHint
+      }));
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) return;
+        const saved = JSON.parse(raw);
+        if (saved && typeof saved === 'object') {
+          if (typeof saved.rewindStepsPerSecond === 'number') state.rewindStepsPerSecond = saved.rewindStepsPerSecond;
+          if (typeof saved.bgDataUrl === 'string') state.bgDataUrl = saved.bgDataUrl;
+          if (typeof saved.liveClock === 'boolean') state.liveClock = saved.liveClock;
+          if (typeof saved.showHint === 'boolean') state.showHint = saved.showHint;
+        }
+      } catch (e) {
+        console.warn('讀取設定失敗', e);
+      }
+    }
+
+    function applySettingsToUI() {
+      phone.style.backgroundImage = state.bgDataUrl ? `url(${JSON.stringify(state.bgDataUrl).slice(1, -1)})` : defaultBg;
+      speedRange.value = String(state.rewindStepsPerSecond);
+      speedValue.textContent = String(state.rewindStepsPerSecond);
+      liveClockToggle.checked = state.liveClock;
+      tapHintToggle.checked = state.showHint;
+      hintText.classList.toggle('show', state.showHint);
+    }
+
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(state.toastId);
+      state.toastId = setTimeout(() => toast.classList.remove('show'), 1800);
+    }
+
+    function padValueText() {
+      return state.numpadInput === '' ? '0' : state.numpadInput;
+    }
+
+    function openPanel(name) {
+      state.panel = name;
+      backdrop.classList.add('show');
+      numpadSheet.classList.toggle('show', name === 'numpad');
+      settingsSheet.classList.toggle('show', name === 'settings');
+      if (name === 'numpad') padDisplay.textContent = padValueText();
+    }
+
+    function closePanels() {
+      state.panel = null;
+      backdrop.classList.remove('show');
+      numpadSheet.classList.remove('show');
+      settingsSheet.classList.remove('show');
+    }
+
+    function formatDate(ms) {
+      const d = new Date(ms);
+      return `${d.getMonth() + 1}月${d.getDate()}日 週${weekdays[d.getDay()]} · ${getLunarPlaceholder(d)}`;
+    }
+
+    function getLunarPlaceholder(d) {
+      const labels = ['初一','初二','初三','初四','初五','初六','初七','初八','初九','初十','十一','十二','十三','十四','十五','十六','十七','十八','十九','二十','廿一','廿二','廿三','廿四','廿五','廿六','廿七','廿八','廿九','三十'];
+      return `農曆${labels[(d.getDate() - 1) % labels.length]}`;
+    }
+
+    function formatTime(ms) {
+      const d = new Date(ms);
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      return `${hh}:${mm}`;
+    }
+
+    function syncNormalClock() {
+      const now = Date.now();
+      state.displayMs = now;
+      state.targetMs = now;
+      render();
+    }
+
+    function render() {
+      dateText.textContent = formatDate(state.displayMs);
+      timeText.textContent = formatTime(state.displayMs);
+      timeText.classList.toggle('rewinding', state.rewinding);
+      hintText.classList.toggle('show', state.showHint);
+    }
+
+    function prepareFakeTime(minutesToAdd) {
+      const now = Date.now();
+      state.originalTargetMs = now;
+      state.fakeStartMs = now + minutesToAdd * 60_000;
+      state.displayMs = state.fakeStartMs;
+      state.targetMs = now;
+      state.addedMinutes = minutesToAdd;
+      render();
+      showToast(`已增加 ${minutesToAdd} 分鐘`);
+    }
+
+    function startRewind() {
+      if (state.rewinding) return;
+      if (!state.fakeStartMs || state.displayMs <= state.targetMs) {
+        showToast('請先用左下角輸入分鐘數');
+        return;
+      }
+
+      state.rewinding = true;
+      const intervalMs = 100;
+      state.intervalId = setInterval(() => {
+        const stepCount = state.rewindStepsPerSecond * (intervalMs / 1000);
+        const stepMs = 60_000 * stepCount;
+        state.displayMs -= stepMs;
+
+        if (state.displayMs <= state.targetMs) {
+          state.displayMs = state.targetMs;
+          stopRewind(true);
+          return;
+        }
+        render();
+      }, intervalMs);
+      render();
+      showToast('開始倒流');
+    }
+
+    function stopRewind(finished = false) {
+      clearInterval(state.intervalId);
+      state.intervalId = null;
+      state.rewinding = false;
+      state.fakeStartMs = null;
+      state.addedMinutes = 0;
+      render();
+      if (finished) showToast('倒流完成');
+    }
+
+    function tick() {
+      if (!state.rewinding) {
+        if (!state.fakeStartMs && state.liveClock) {
+          syncNormalClock();
+        } else {
+          render();
+        }
+      }
+    }
+
+    magicBtn.addEventListener('click', () => {
+      state.numpadInput = state.addedMinutes > 0 ? String(state.addedMinutes) : '';
+      openPanel('numpad');
+    });
+
+    settingsBtn.addEventListener('click', () => openPanel('settings'));
+    backdrop.addEventListener('click', closePanels);
+
+    numpadSheet.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-key]');
+      if (!btn) return;
+      const key = btn.dataset.key;
+      if (key === 'clear') {
+        state.numpadInput = '';
+      } else if (key === 'ok') {
+        const value = Number(state.numpadInput || '0');
+        closePanels();
+        if (value <= 0) {
+          showToast('請輸入大於 0 的分鐘數');
+          return;
+        }
+        if (state.rewinding) stopRewind(false);
+        prepareFakeTime(value);
+      } else {
+        if (state.numpadInput.length >= 4) return;
+        if (state.numpadInput === '0') state.numpadInput = '';
+        state.numpadInput += key;
+      }
+      padDisplay.textContent = padValueText();
+    });
+
+    document.getElementById('contentArea').addEventListener('click', (e) => {
+      if (state.panel) return;
+      if (e.target.closest('#magicBtn') || e.target.closest('#settingsBtn')) return;
+      if (state.rewinding) return;
+      startRewind();
+    });
+
+    speedRange.addEventListener('input', () => {
+      state.rewindStepsPerSecond = Number(speedRange.value);
+      speedValue.textContent = speedRange.value;
+      saveState();
+    });
+
+    liveClockToggle.addEventListener('change', () => {
+      state.liveClock = liveClockToggle.checked;
+      saveState();
+      if (!state.fakeStartMs && state.liveClock) syncNormalClock();
+    });
+
+    tapHintToggle.addEventListener('change', () => {
+      state.showHint = tapHintToggle.checked;
+      hintText.classList.toggle('show', state.showHint);
+      saveState();
+    });
+
+    bgUpload.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        state.bgDataUrl = reader.result;
+        applySettingsToUI();
+        saveState();
+        showToast('背景已更新');
+      };
+      reader.readAsDataURL(file);
+    });
+
+    resetBgBtn.addEventListener('click', () => {
+      state.bgDataUrl = null;
+      applySettingsToUI();
+      saveState();
+      showToast('已恢復預設背景');
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (state.panel !== 'numpad') return;
+      if (/^[0-9]$/.test(e.key)) {
+        if (state.numpadInput.length < 4) state.numpadInput += e.key;
+      } else if (e.key === 'Backspace') {
+        state.numpadInput = state.numpadInput.slice(0, -1);
+      } else if (e.key === 'Enter') {
+        const value = Number(state.numpadInput || '0');
+        closePanels();
+        if (value > 0) prepareFakeTime(value);
+      }
+      padDisplay.textContent = padValueText();
+    });
+
+    loadState();
+    applySettingsToUI();
+    syncNormalClock();
+    setInterval(tick, 1000);
+  </script>
+</body>
+</html>
