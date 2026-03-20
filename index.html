@@ -236,7 +236,7 @@
       left: 50%;
       bottom: 0px;
       transform: translateX(-50%);
-      width: 135px;
+      width: 155px;
       height: 5px;
       border-radius: 999px;
       background: rgba(255,255,255,0.92);
@@ -707,14 +707,14 @@
       timeText.style.webkitTextStroke = '0 transparent';
 
       if (style === 'glass') {
-        timeText.style.color = 'rgba(255,255,255,0.12)';
+        timeText.style.color = 'rgba(255,255,255,0.48)';
         timeText.style.fontWeight = '700';
         timeText.style.letterSpacing = '-5.2px';
         timeText.style.textShadow = `
-          0.6px 0 rgba(255,255,255,0.62),
-          -0.6px 0 rgba(255,255,255,0.62),
-          0 0.6px rgba(255,255,255,0.62),
-          0 -0.6px rgba(255,255,255,0.62),
+          1px 0 1 rgba(255,255,255,0.52),
+          -1px 0 1 rgba(255,255,255,0.52),
+          0 1px 1 rgba(255,255,255,0.52),
+          0 -1px 1 rgba(255,255,255,0.52),
           0 2px 10px rgba(0,0,0,0.10)
         `;
       } else if (style === 'solid') {
