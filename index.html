@@ -199,9 +199,9 @@
       position: absolute;
       left: 0;
       right: 0;
-      bottom: calc(var(--safe-bottom) + 18px);
+      bottom: calc(var(--safe-bottom) + 25px);
       z-index: 4;
-      padding: 0 26px;
+      padding: 0 50px;
       display: flex;
       justify-content: space-between;
       align-items: end;
@@ -572,11 +572,11 @@
         <div class="setting-group">
           <div class="setting-label">時間位置與大小</div>
           <div class="setting-row">
-            <input type="range" id="timeSizeRange" min="88" max="180" step="2" value="132" />
+            <input type="range" id="timeSizeRange" min="80" max="200" step="2" value="140" />
             <span class="status-chip">大小 <span id="timeSizeValue">132</span></span>
           </div>
           <div class="setting-row" style="margin-top:8px;">
-            <input type="range" id="timeOffsetRange" min="48" max="180" step="2" value="96" />
+            <input type="range" id="timeOffsetRange" min="0" max="180" step="2" value="60" />
             <span class="status-chip">位置 <span id="timeOffsetValue">96</span></span>
           </div>
         </div>
@@ -587,7 +587,7 @@
   </div>
 
   <script>
-    const storageKey = 'ios-time-rewind-ui-v5';
+    const storageKey = 'ios-time-rewind-ui-v6';
     const defaultBackground = './UI.jpeg';
 
     const state = {
@@ -601,8 +601,8 @@
       showStatusBar: true,
       use24Hour: true,
       rewindSpeed: 1.0,
-      timeSize: 132,
-      timeOffset: 96,
+      timeSize: 140,
+      timeOffset: 60,
       timeStyle: 'glass',
       backgroundData: null,
       numpadInput: '',
@@ -694,7 +694,7 @@
       timeText.style.webkitTextStroke = '0 transparent';
 
       if (style === 'glass') {
-        timeText.style.color = 'rgba(255,255,255,0.26)';
+        timeText.style.color = 'rgba(255,255,255,0.35)';
         timeText.style.fontWeight = '700';
         timeText.style.letterSpacing = '-1px';
         timeText.style.textShadow = '0 2px 10px rgba(0,0,0,0.14)';
