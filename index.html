@@ -138,7 +138,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
-      padding-top: 126px;
+      padding-top: 96px;
       text-align: center;
       text-shadow: 0 3px 12px rgba(0,0,0,0.28);
     }
@@ -266,6 +266,9 @@
       color: #fff;
     }
     .sheet.show { transform: translateX(-50%) translateY(0); }
+    #numpadSheet.show {
+      transform: translateX(0) translateY(0) !important;
+    }
     .sheet .grabber {
       width: 46px;
       height: 5px;
@@ -280,25 +283,25 @@
     }
 
     .pad-display {
-      padding: 8px 12px;
-      border-radius: 16px;
+      padding: 6px 10px;
+      border-radius: 14px;
       background: rgba(255,255,255,0.09);
       border: 1px solid rgba(255,255,255,0.12);
       text-align: center;
-      font-size: 28px;
+      font-size: 24px;
       font-weight: 700;
       letter-spacing: 1px;
       margin-bottom: 10px;
-      min-height: 52px;
+      min-height: 44px;
       display: grid;
       place-items: center;
     }
 
     .pad-help {
       text-align: center;
-      font-size: 13px;
+      font-size: 11px;
       color: rgba(255,255,255,0.72);
-      margin: -4px 0 12px;
+      margin: -2px 0 8px;
     }
 
     .numpad {
@@ -308,25 +311,11 @@
     }
 
     .numkey {
-      height: 52px;
+      height: 42px;
       border: 0;
       border-radius: 16px;
       color: #fff;
-      font-size: 22px;
-      font-weight: 600;
-      background: rgba(255,255,255,0.09);
-      border: 1px solid rgba(255,255,255,0.12);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
-    }
-
-    .numkey {
-      height: 62px;
-      border: 0;
-      border-radius: 18px;
-      color: #fff;
-      font-size: 26px;
+      font-size: 18px;
       font-weight: 600;
       background: rgba(255,255,255,0.09);
       border: 1px solid rgba(255,255,255,0.12);
@@ -429,7 +418,7 @@
   <div class="phone" id="phone">
     <div class="bg-overlay"></div>
 
-    <div class="topbar">
+    <div class="topbar" id="topbar">
       <div id="carrier">台灣大哥大</div>
       <div class="status-right">
         <div class="signal"><span></span><span></span><span></span><span></span></div>
@@ -437,7 +426,7 @@
         <div class="battery">70</div>
       </div>
     </div>
-    <div class="home-indicator-top"></div>
+    <div class="home-indicator-top" id="topIndicator"></div>
 
     <div class="content" id="contentArea">
       <div class="date" id="dateText"></div>
@@ -463,7 +452,7 @@
 
     <div class="sheet-backdrop" id="backdrop"></div>
 
-    <div class="sheet" id="numpadSheet" style="width:min(300px, calc(100vw - 32px));">
+    <div class="sheet" id="numpadSheet" style="width:220px; left:24px; bottom:132px; transform:translateX(0) translateY(130%);">
       <div class="grabber"></div>
       <h3>輸入要增加的分鐘數</h3>
       <div class="pad-display" id="padDisplay">0</div>
@@ -497,18 +486,26 @@
         </div>
 
         <div class="setting-group">
-          <div class="setting-label">倒流速度（每秒退幾個顯示步）</div>
+          <div class="setting-label">倒流速度（以 1 秒退 1 分鐘為基準，可更慢或更快）</div>
           <div class="setting-row">
-            <input type="range" id="speedRange" min="1" max="30" step="1" value="8" />
-            <span class="status-chip"><span>⚡</span><span id="speedValue">8</span></span>
+            <input type="range" id="speedRange" min="0.2" max="2" step="0.1" value="1" />
+            <span class="status-chip"><span>⏱</span><span id="speedValue">1.0x</span></span>
           </div>
         </div>
 
         <div class="setting-group">
-          <div class="setting-label">時間同步模式</div>
+          <div class="setting-label">顯示選項</div>
           <div class="setting-row">
             <label class="status-chip"><input type="checkbox" id="liveClockToggle" checked />&nbsp;平常讀取現在時間</label>
             <label class="status-chip"><input type="checkbox" id="tapHintToggle" checked />&nbsp;顯示提示字</label>
+            <label class="status-chip"><input type="checkbox" id="statusBarToggle" checked />&nbsp;顯示最上方狀態列</label>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-label">時間格式</div>
+          <div class="setting-row">
+            <label class="status-chip"><input type="checkbox" id="hourFormatToggle" checked />&nbsp;24 小時制</label>
           </div>
         </div>
       </div>
@@ -530,7 +527,9 @@
       rewinding: false,
       showHint: true,
       liveClock: true,
-      rewindStepsPerSecond: 8,
+      showStatusBar: true,
+      use24Hour: true,
+      rewindSpeed: 1.0,
       bgDataUrl: null,
       intervalId: null,
       toastId: null,
@@ -542,6 +541,8 @@
     const dateText = document.getElementById('dateText');
     const timeText = document.getElementById('timeText');
     const hintText = document.getElementById('hintText');
+    const topbar = document.getElementById('topbar');
+    const topIndicator = document.getElementById('topIndicator');
     const magicBtn = document.getElementById('magicBtn');
     const settingsBtn = document.getElementById('settingsBtn');
     const backdrop = document.getElementById('backdrop');
@@ -555,12 +556,16 @@
     const speedValue = document.getElementById('speedValue');
     const liveClockToggle = document.getElementById('liveClockToggle');
     const tapHintToggle = document.getElementById('tapHintToggle');
+    const statusBarToggle = document.getElementById('statusBarToggle');
+    const hourFormatToggle = document.getElementById('hourFormatToggle');
 
     const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
 
     function saveState() {
       localStorage.setItem(storageKey, JSON.stringify({
-        rewindStepsPerSecond: state.rewindStepsPerSecond,
+        rewindSpeed: state.rewindSpeed,
+        showStatusBar: state.showStatusBar,
+        use24Hour: state.use24Hour,
         bgDataUrl: state.bgDataUrl,
         liveClock: state.liveClock,
         showHint: state.showHint
@@ -573,10 +578,12 @@
         if (!raw) return;
         const saved = JSON.parse(raw);
         if (saved && typeof saved === 'object') {
-          if (typeof saved.rewindStepsPerSecond === 'number') state.rewindStepsPerSecond = saved.rewindStepsPerSecond;
+          if (typeof saved.rewindSpeed === 'number') state.rewindSpeed = saved.rewindSpeed;
           if (typeof saved.bgDataUrl === 'string') state.bgDataUrl = saved.bgDataUrl;
           if (typeof saved.liveClock === 'boolean') state.liveClock = saved.liveClock;
           if (typeof saved.showHint === 'boolean') state.showHint = saved.showHint;
+          if (typeof saved.showStatusBar === 'boolean') state.showStatusBar = saved.showStatusBar;
+          if (typeof saved.use24Hour === 'boolean') state.use24Hour = saved.use24Hour;
         }
       } catch (e) {
         console.warn('讀取設定失敗', e);
@@ -585,14 +592,19 @@
 
     function applySettingsToUI() {
       phone.style.backgroundImage = state.bgDataUrl ? `url(${JSON.stringify(state.bgDataUrl).slice(1, -1)})` : defaultBg;
-      speedRange.value = String(state.rewindStepsPerSecond);
-      speedValue.textContent = String(state.rewindStepsPerSecond);
+      speedRange.value = String(state.rewindSpeed);
+      speedValue.textContent = `${state.rewindSpeed.toFixed(1)}x`;
       liveClockToggle.checked = state.liveClock;
       tapHintToggle.checked = state.showHint;
+      statusBarToggle.checked = state.showStatusBar;
+      hourFormatToggle.checked = state.use24Hour;
       hintText.classList.toggle('show', state.showHint);
+      topbar.style.display = state.showStatusBar ? 'flex' : 'none';
+      topIndicator.style.display = state.showStatusBar ? 'block' : 'none';
     }
 
     function showToast(msg) {
+      if (!state.showHint) return;
       toast.textContent = msg;
       toast.classList.add('show');
       clearTimeout(state.toastId);
@@ -620,18 +632,39 @@
 
     function formatDate(ms) {
       const d = new Date(ms);
-      return `${d.getMonth() + 1}月${d.getDate()}日 週${weekdays[d.getDay()]} · ${getLunarPlaceholder(d)}`;
+      return `${d.getMonth() + 1}月${d.getDate()}日 週${weekdays[d.getDay()]} · ${getLunarText(d)}`;
     }
 
-    function getLunarPlaceholder(d) {
-      const labels = ['初一','初二','初三','初四','初五','初六','初七','初八','初九','初十','十一','十二','十三','十四','十五','十六','十七','十八','十九','二十','廿一','廿二','廿三','廿四','廿五','廿六','廿七','廿八','廿九','三十'];
-      return `農曆${labels[(d.getDate() - 1) % labels.length]}`;
+    function getLunarText(d) {
+      const dayMap = ['初一','初二','初三','初四','初五','初六','初七','初八','初九','初十','十一','十二','十三','十四','十五','十六','十七','十八','十九','二十','廿一','廿二','廿三','廿四','廿五','廿六','廿七','廿八','廿九','三十'];
+      try {
+        const fmt = new Intl.DateTimeFormat('zh-Hant-u-ca-chinese', {
+          month: 'long',
+          day: 'numeric'
+        });
+        const parts = fmt.formatToParts(d);
+        let monthText = (parts.find(p => p.type === 'month') || {}).value || '二月';
+        const dayRaw = (parts.find(p => p.type === 'day') || {}).value || String(d.getDate());
+        const dayNum = Number(dayRaw);
+        if (!monthText.includes('月')) monthText += '月';
+        if (!Number.isFinite(dayNum) || dayNum < 1 || dayNum > 30) {
+          return monthText + dayMap[(d.getDate() - 1) % dayMap.length];
+        }
+        return monthText + dayMap[dayNum - 1];
+      } catch (e) {
+        return '二月' + dayMap[(d.getDate() - 1) % dayMap.length];
+      }
     }
 
     function formatTime(ms) {
       const d = new Date(ms);
-      const hh = String(d.getHours()).padStart(2, '0');
+      let hh = d.getHours();
       const mm = String(d.getMinutes()).padStart(2, '0');
+      if (state.use24Hour) {
+        return `${String(hh).padStart(2, '0')}:${mm}`;
+      }
+      hh = hh % 12;
+      if (hh === 0) hh = 12;
       return `${hh}:${mm}`;
     }
 
@@ -668,10 +701,9 @@
       }
 
       state.rewinding = true;
-      const intervalMs = 100;
+      const intervalMs = 1000;
       state.intervalId = setInterval(() => {
-        const stepCount = state.rewindStepsPerSecond * (intervalMs / 1000);
-        const stepMs = 60_000 * stepCount;
+        const stepMs = 60_000 * state.rewindSpeed;
         state.displayMs -= stepMs;
 
         if (state.displayMs <= state.targetMs) {
@@ -744,8 +776,8 @@
     });
 
     speedRange.addEventListener('input', () => {
-      state.rewindStepsPerSecond = Number(speedRange.value);
-      speedValue.textContent = speedRange.value;
+      state.rewindSpeed = Number(speedRange.value);
+      speedValue.textContent = `${state.rewindSpeed.toFixed(1)}x`;
       saveState();
     });
 
@@ -758,6 +790,20 @@
     tapHintToggle.addEventListener('change', () => {
       state.showHint = tapHintToggle.checked;
       hintText.classList.toggle('show', state.showHint);
+      toast.classList.remove('show');
+      saveState();
+    });
+
+    statusBarToggle.addEventListener('change', () => {
+      state.showStatusBar = statusBarToggle.checked;
+      topbar.style.display = state.showStatusBar ? 'flex' : 'none';
+      topIndicator.style.display = state.showStatusBar ? 'block' : 'none';
+      saveState();
+    });
+
+    hourFormatToggle.addEventListener('change', () => {
+      state.use24Hour = hourFormatToggle.checked;
+      render();
       saveState();
     });
 
