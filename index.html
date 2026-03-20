@@ -4,16 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Time" />
   <meta name="mobile-web-app-capable" content="yes" />
   <link rel="apple-touch-icon" sizes="180x180" href="./time.png" />
   <title>Time Trick</title>
+
   <style>
     :root {
       --fg: rgba(255,255,255,0.96);
       --muted: rgba(255,255,255,0.86);
-      --glass: rgba(255,255,255,0.12);
       --glass-border: rgba(255,255,255,0.22);
       --shadow: 0 16px 40px rgba(0,0,0,0.28);
       --safe-top: env(safe-area-inset-top, 0px);
@@ -26,6 +25,13 @@
     * {
       box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;
+      scrollbar-width: none;
+    }
+
+    *::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+      display: none;
     }
 
     html, body {
@@ -167,19 +173,14 @@
       padding: 0 18px;
     }
 
-    .time-wrap {
-      transform-origin: center top;
-    }
-
     .time {
       font-size: var(--time-size);
       line-height: 0.95;
-      font-weight: 700;
-      letter-spacing: -4px;
-      color: rgba(255,255,255,0.42);
-      -webkit-text-stroke: 1.2px rgba(255,255,255,0.58);
-      text-shadow: 0 3px 14px rgba(0,0,0,0.16), 0 0 1px rgba(255,255,255,0.35);
+      letter-spacing: -1.5px;
       transition: opacity 0.18s ease;
+      text-rendering: geometricPrecision;
+      -webkit-font-smoothing: antialiased;
+      font-variant-numeric: tabular-nums;
     }
 
     .hint {
@@ -268,12 +269,17 @@
       backdrop-filter: blur(24px) saturate(140%);
       -webkit-backdrop-filter: blur(24px) saturate(140%);
       box-shadow: 0 20px 60px rgba(0,0,0,0.38);
-      transform: translateY(120%);
-      transition: transform 0.24s ease;
+      opacity: 0;
+      pointer-events: none;
+      visibility: hidden;
+      transition: opacity 0.18s ease, transform 0.18s ease, visibility 0s linear 0.18s;
     }
 
     .sheet.show {
-      transform: translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+      visibility: visible;
+      transition: opacity 0.18s ease, transform 0.18s ease, visibility 0s linear 0s;
     }
 
     #numpadSheet {
@@ -281,18 +287,23 @@
       left: 24px;
       bottom: calc(var(--safe-bottom) + 112px);
       padding: 10px;
+      transform: translateY(12px) scale(0.98);
+    }
+
+    #numpadSheet.show {
+      transform: translateY(0) scale(1);
     }
 
     #settingsSheet {
       width: min(360px, calc(100vw - 28px));
       left: 50%;
-      transform: translateX(-50%) translateY(120%);
       bottom: calc(var(--safe-bottom) + 92px);
       padding: 12px 12px 14px;
+      transform: translateX(-50%) translateY(12px) scale(0.98);
     }
 
     #settingsSheet.show {
-      transform: translateX(-50%) translateY(0);
+      transform: translateX(-50%) translateY(0) scale(1);
     }
 
     .grabber {
@@ -350,21 +361,21 @@
       padding: 0;
     }
 
-    .numkey.wide {
-      grid-column: span 2;
-    }
-
-    .numkey.confirm {
-      background: rgba(255,255,255,0.18);
-    }
+    .numkey.wide { grid-column: span 2; }
+    .numkey.confirm { background: rgba(255,255,255,0.18); }
 
     .settings-body {
       display: flex;
       flex-direction: column;
       gap: 12px;
-      max-height: min(62vh, 520px);
-      overflow: auto;
+      max-height: min(68vh, 560px);
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+      overscroll-behavior: contain;
       padding-right: 2px;
+      padding-bottom: 12px;
     }
 
     .setting-group {
@@ -406,6 +417,17 @@
       color: #fff;
       padding: 10px 14px;
       font-size: 14px;
+      cursor: pointer;
+    }
+
+    .font-btn {
+      min-width: 72px;
+      text-align: center;
+    }
+
+    .font-btn.active {
+      background: rgba(255,255,255,0.24);
+      border-color: rgba(255,255,255,0.22);
     }
 
     .status-chip {
@@ -461,13 +483,11 @@
 
     <div class="content" id="contentArea">
       <div class="date" id="dateText"></div>
-      <div class="time-wrap" id="timeWrap">
-        <div class="time" id="timeText">00:00</div>
-      </div>
+      <div class="time" id="timeText">00:00</div>
       <div class="hint" id="hintText">先用左下角輸入增加分鐘，再點畫面開始倒流</div>
     </div>
 
-    <div class="bottom-bar">
+    <div class="bottom-bar" id="bottomBar">
       <button class="glass-btn" id="magicBtn" aria-label="輸入增加分鐘">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M7 2h10a2 2 0 0 1 2 2v3a5 5 0 0 1-2.03 4.03l-.54.4A3 3 0 0 0 15.2 13.8V20a2 2 0 0 1-2 2H10.8a2 2 0 0 1-2-2v-6.2a3 3 0 0 0-1.23-2.37l-.54-.4A5 5 0 0 1 5 7V4a2 2 0 0 1 2-2zm2 3v2h6V5H9zm3 7.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6z"/>
@@ -481,8 +501,7 @@
       </button>
     </div>
 
-    <div class="home-indicator"></div>
-
+    <div class="home-indicator" id="homeIndicator"></div>
     <div class="sheet-backdrop" id="backdrop"></div>
 
     <div class="sheet" id="numpadSheet">
@@ -541,18 +560,24 @@
         </div>
 
         <div class="setting-group">
-          <div class="setting-label">時間顯示大小</div>
+          <div class="setting-label">時間樣式</div>
           <div class="setting-row">
-            <input type="range" id="timeSizeRange" min="88" max="180" step="2" value="132" />
-            <span class="status-chip"><span>🔠</span><span id="timeSizeValue">132</span></span>
+            <button class="small-btn font-btn" data-style="glass">玻璃</button>
+            <button class="small-btn font-btn" data-style="solid">不透明</button>
+            <button class="small-btn font-btn" data-style="thin">細字</button>
+            <button class="small-btn font-btn" data-style="lock">鎖屏</button>
           </div>
         </div>
 
         <div class="setting-group">
-          <div class="setting-label">時間垂直位置</div>
+          <div class="setting-label">時間位置與大小</div>
           <div class="setting-row">
+            <input type="range" id="timeSizeRange" min="88" max="180" step="2" value="132" />
+            <span class="status-chip">大小 <span id="timeSizeValue">132</span></span>
+          </div>
+          <div class="setting-row" style="margin-top:8px;">
             <input type="range" id="timeOffsetRange" min="48" max="180" step="2" value="96" />
-            <span class="status-chip"><span>↕️</span><span id="timeOffsetValue">96</span></span>
+            <span class="status-chip">位置 <span id="timeOffsetValue">96</span></span>
           </div>
         </div>
       </div>
@@ -562,7 +587,7 @@
   </div>
 
   <script>
-    const storageKey = 'ios-time-rewind-ui-v2';
+    const storageKey = 'ios-time-rewind-ui-v5';
     const defaultBackground = './UI.jpeg';
 
     const state = {
@@ -578,6 +603,7 @@
       rewindSpeed: 1.0,
       timeSize: 132,
       timeOffset: 96,
+      timeStyle: 'glass',
       backgroundData: null,
       numpadInput: '',
       toastTimer: null,
@@ -590,7 +616,6 @@
     const contentArea = document.getElementById('contentArea');
     const dateText = document.getElementById('dateText');
     const timeText = document.getElementById('timeText');
-    const timeWrap = document.getElementById('timeWrap');
     const hintText = document.getElementById('hintText');
     const topbar = document.getElementById('topbar');
     const topIndicator = document.getElementById('topIndicator');
@@ -601,7 +626,6 @@
     const settingsSheet = document.getElementById('settingsSheet');
     const padDisplay = document.getElementById('padDisplay');
     const toast = document.getElementById('toast');
-
     const bgUpload = document.getElementById('bgUpload');
     const resetBgBtn = document.getElementById('resetBgBtn');
     const speedRange = document.getElementById('speedRange');
@@ -611,8 +635,8 @@
     const statusBarToggle = document.getElementById('statusBarToggle');
     const hourFormatToggle = document.getElementById('hourFormatToggle');
     const timeSizeRange = document.getElementById('timeSizeRange');
-    const timeSizeValue = document.getElementById('timeSizeValue');
     const timeOffsetRange = document.getElementById('timeOffsetRange');
+    const timeSizeValue = document.getElementById('timeSizeValue');
     const timeOffsetValue = document.getElementById('timeOffsetValue');
 
     const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
@@ -637,6 +661,7 @@
         rewindSpeed: state.rewindSpeed,
         timeSize: state.timeSize,
         timeOffset: state.timeOffset,
+        timeStyle: state.timeStyle,
         backgroundData: state.backgroundData
       }));
     }
@@ -653,10 +678,44 @@
         if (typeof saved.rewindSpeed === 'number') state.rewindSpeed = saved.rewindSpeed;
         if (typeof saved.timeSize === 'number') state.timeSize = saved.timeSize;
         if (typeof saved.timeOffset === 'number') state.timeOffset = saved.timeOffset;
+        if (typeof saved.timeStyle === 'string') state.timeStyle = saved.timeStyle;
         if (typeof saved.backgroundData === 'string') state.backgroundData = saved.backgroundData;
       } catch (err) {
         console.warn('讀取設定失敗', err);
       }
+    }
+
+    function getFontButtons() {
+      return Array.from(document.querySelectorAll('.font-btn'));
+    }
+
+    function applyTimeStyle(style) {
+      state.timeStyle = style;
+      timeText.style.webkitTextStroke = '0 transparent';
+
+      if (style === 'glass') {
+        timeText.style.color = 'rgba(255,255,255,0.26)';
+        timeText.style.fontWeight = '700';
+        timeText.style.letterSpacing = '-1px';
+        timeText.style.textShadow = '0 2px 10px rgba(0,0,0,0.14)';
+      } else if (style === 'solid') {
+        timeText.style.color = 'rgba(255,255,255,0.97)';
+        timeText.style.fontWeight = '800';
+        timeText.style.letterSpacing = '-1px';
+        timeText.style.textShadow = '0 3px 12px rgba(0,0,0,0.22)';
+      } else if (style === 'thin') {
+        timeText.style.color = 'rgba(255,255,255,0.88)';
+        timeText.style.fontWeight = '300';
+        timeText.style.letterSpacing = '-0.5px';
+        timeText.style.textShadow = '0 2px 8px rgba(0,0,0,0.16)';
+      } else {
+        timeText.style.color = 'rgba(255,255,255,0.92)';
+        timeText.style.fontWeight = '500';
+        timeText.style.letterSpacing = '-1.5px';
+        timeText.style.textShadow = '0 3px 14px rgba(0,0,0,0.2)';
+      }
+
+      getFontButtons().forEach(btn => btn.classList.toggle('active', btn.dataset.style === style));
     }
 
     function applySettingsToUI() {
@@ -671,11 +730,12 @@
       statusBarToggle.checked = state.showStatusBar;
       hourFormatToggle.checked = state.use24Hour;
       timeSizeRange.value = String(state.timeSize);
-      timeSizeValue.textContent = String(state.timeSize);
       timeOffsetRange.value = String(state.timeOffset);
-      timeOffsetValue.textContent = String(state.timeOffset);
       document.documentElement.style.setProperty('--time-size', `${state.timeSize}px`);
       document.documentElement.style.setProperty('--time-offset', `${state.timeOffset}px`);
+      timeSizeValue.textContent = String(state.timeSize);
+      timeOffsetValue.textContent = String(state.timeOffset);
+      applyTimeStyle(state.timeStyle);
     }
 
     function showToast(message) {
@@ -691,9 +751,7 @@
       backdrop.classList.add('show');
       numpadSheet.classList.toggle('show', name === 'numpad');
       settingsSheet.classList.toggle('show', name === 'settings');
-      if (name === 'numpad') {
-        padDisplay.textContent = state.numpadInput || '0';
-      }
+      if (name === 'numpad') padDisplay.textContent = state.numpadInput || '0';
     }
 
     function closePanels() {
@@ -707,9 +765,7 @@
       const d = new Date(ms);
       let hh = d.getHours();
       const mm = String(d.getMinutes()).padStart(2, '0');
-      if (state.use24Hour) {
-        return `${String(hh).padStart(2, '0')}:${mm}`;
-      }
+      if (state.use24Hour) return `${String(hh).padStart(2, '0')}:${mm}`;
       hh = hh % 12;
       if (hh === 0) hh = 12;
       return `${hh}:${mm}`;
@@ -732,18 +788,13 @@
 
     function getLunarText(d) {
       try {
-        const fmt = new Intl.DateTimeFormat('zh-Hant-u-ca-chinese', {
-          month: 'long',
-          day: 'numeric'
-        });
+        const fmt = new Intl.DateTimeFormat('zh-Hant-u-ca-chinese', { month: 'long', day: 'numeric' });
         const parts = fmt.formatToParts(d);
         let month = (parts.find(p => p.type === 'month') || {}).value || '二月';
         const dayValue = (parts.find(p => p.type === 'day') || {}).value || String(d.getDate());
         const dayNum = Number(dayValue);
         if (!month.includes('月')) month += '月';
-        if (dayNum >= 1 && dayNum <= 30) {
-          return `${month}${lunarDays[dayNum - 1]}`;
-        }
+        if (dayNum >= 1 && dayNum <= 30) return `${month}${lunarDays[dayNum - 1]}`;
         return `${month}${lunarDays[(d.getDate() - 1) % 30]}`;
       } catch (e) {
         return `二月${lunarDays[(d.getDate() - 1) % 30]}`;
@@ -770,7 +821,7 @@
     function prepareFakeTime(minutes) {
       const now = Date.now();
       state.targetMs = now;
-      state.fakeStartMs = now + minutes * 60_000;
+      state.fakeStartMs = now + minutes * 60000;
       state.displayMs = state.fakeStartMs;
       state.addedMinutes = minutes;
       render();
@@ -793,10 +844,13 @@
         showToast('請先用左下角輸入分鐘數');
         return;
       }
+
+      closePanels();
       state.rewinding = true;
       showToast('開始倒流');
+
       state.rewindTimer = setInterval(() => {
-        state.displayMs -= 60_000 * state.rewindSpeed;
+        state.displayMs -= 60000 * state.rewindSpeed;
         if (state.displayMs <= state.targetMs) {
           state.displayMs = state.targetMs;
           stopRewind(true);
@@ -808,11 +862,8 @@
 
     function mainTick() {
       if (state.rewinding) return;
-      if (!state.fakeStartMs && state.liveClock) {
-        syncNormalClock();
-      } else {
-        render();
-      }
+      if (!state.fakeStartMs && state.liveClock) syncNormalClock();
+      else render();
     }
 
     magicBtn.addEventListener('click', () => {
@@ -824,8 +875,7 @@
     backdrop.addEventListener('click', closePanels);
 
     contentArea.addEventListener('click', () => {
-      if (state.currentPanel) return;
-      if (state.rewinding) return;
+      if (state.currentPanel || state.rewinding) return;
       startRewind();
     });
 
@@ -833,6 +883,7 @@
       const btn = e.target.closest('[data-key]');
       if (!btn) return;
       const key = btn.dataset.key;
+
       if (key === 'clear') {
         state.numpadInput = '';
       } else if (key === 'ok') {
@@ -844,11 +895,11 @@
         }
         if (state.rewinding) stopRewind(false);
         prepareFakeTime(value);
-      } else {
-        if (state.numpadInput.length < 4) {
-          state.numpadInput += key;
-        }
+        return;
+      } else if (state.numpadInput.length < 4) {
+        state.numpadInput += key;
       }
+
       padDisplay.textContent = state.numpadInput || '0';
     });
 
@@ -898,6 +949,14 @@
       saveState();
     });
 
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('.font-btn');
+      if (!btn) return;
+      applyTimeStyle(btn.dataset.style);
+      saveState();
+      closePanels();
+    });
+
     bgUpload.addEventListener('change', (e) => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
@@ -906,6 +965,7 @@
         state.backgroundData = reader.result;
         applySettingsToUI();
         saveState();
+        closePanels();
         showToast('背景已更新');
       };
       reader.readAsDataURL(file);
@@ -915,11 +975,13 @@
       state.backgroundData = null;
       applySettingsToUI();
       saveState();
+      closePanels();
       showToast('已恢復預設背景');
     });
 
     document.addEventListener('keydown', (e) => {
       if (state.currentPanel !== 'numpad') return;
+
       if (/^[0-9]$/.test(e.key)) {
         if (state.numpadInput.length < 4) state.numpadInput += e.key;
       } else if (e.key === 'Backspace') {
@@ -929,15 +991,20 @@
         closePanels();
         if (value > 0) prepareFakeTime(value);
       }
+
       padDisplay.textContent = state.numpadInput || '0';
     });
 
     window.addEventListener('resize', setAppHeight);
     window.addEventListener('orientationchange', setAppHeight);
+
     document.addEventListener('gesturestart', preventGesture, { passive: false });
     document.addEventListener('gesturechange', preventGesture, { passive: false });
     document.addEventListener('gestureend', preventGesture, { passive: false });
-    document.addEventListener('touchmove', preventGesture, { passive: false });
+    document.addEventListener('touchmove', (e) => {
+      if (e.target.closest('.settings-body')) return;
+      preventGesture(e);
+    }, { passive: false });
 
     loadState();
     setAppHeight();
