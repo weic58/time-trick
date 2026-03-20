@@ -62,8 +62,8 @@
       min-height: var(--app-height);
       overflow: hidden;
       background-color: #000;
-      background-position: center;
-      background-size: cover;
+      background-position: center -16px;
+      background-size: 112% auto;
       background-repeat: no-repeat;
     }
 
@@ -199,9 +199,9 @@
       position: absolute;
       left: 0;
       right: 0;
-      bottom: calc(var(--safe-bottom) + 0px);
+      bottom: calc(var(--safe-bottom) + 20px);
       z-index: 4;
-      padding: 0 26px;
+      padding: 0 50px;
       display: flex;
       justify-content: space-between;
       align-items: end;
@@ -233,7 +233,7 @@
     .home-indicator {
       position: absolute;
       left: 50%;
-      bottom: 10px;
+      bottom: 0px;
       transform: translateX(-50%);
       width: 135px;
       height: 5px;
