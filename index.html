@@ -1046,6 +1046,7 @@
       state.blackMode = blackModeToggle.checked;
       saveState();
       if (state.blackMode) {
+        closePanels();
         showBlackScreen();
       } else {
         clearTimeout(blackScreenTimer);
